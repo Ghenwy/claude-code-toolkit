@@ -1,0 +1,3 @@
+# Static files directory
+This directory contains static assets for the WebUI frontend.
+Currently placeholder - frontend assets will be added in future iterations.

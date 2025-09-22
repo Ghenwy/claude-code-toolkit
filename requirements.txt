@@ -4,3 +4,9 @@
 # Core dependency for system monitoring
 psutil>=5.8.0                   # Required by context_monitor_generic.py for system stats
 PyYAML>=6.0                # Required by plan_detector.py for YAML config loading
+
+# WebUI Backend Dependencies (CHAT-01)
+fastapi>=0.100.0               # Modern FastAPI with latest async features
+uvicorn[standard]>=0.20.0      # ASGI server with auto-reload and performance optimizations
+websockets>=11.0               # WebSocket support for real-time communication
+pydantic>=2.0.0                # Data validation with modern v2 performance optimizations

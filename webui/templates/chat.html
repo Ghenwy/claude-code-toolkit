@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code Toolkit - Chat Interface</title>
+    <link rel="stylesheet" href="/static/css/chat.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Markdown and Syntax Highlighting Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.0.0/dist/markdown-it.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it-highlightjs@4.0.1/dist/markdown-it-highlightjs.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/highlight.min.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Header Terminal-style -->
+        <header class="chat-header">
+            <div class="terminal-title">
+                <span class="terminal-symbol">$</span>
+                <span class="title">Claude Code Toolkit v2.2.3</span>
+                <span class="connection-status" id="connectionStatus">
+                    <span class="status-dot offline"></span>
+                    <span class="status-text">Connecting...</span>
+                </span>
+            </div>
+            <div class="session-info">
+                <span class="session-label">Session:</span>
+                <span class="session-id" id="sessionId">Initializing...</span>
+            </div>
+        </header>
+
+        <!-- Selection Toolbar -->
+        <div class="selection-toolbar" id="selectionToolbar" style="display: none;">
+            <div class="selection-info">
+                <span class="selection-count">0 messages selected</span>
+                <button class="select-all-btn" id="selectAllBtn" title="Select all messages">
+                    <span class="icon">☑</span>
+                    <span class="text">Select All</span>
+                </button>
+                <button class="clear-selection-btn" id="clearSelectionBtn" title="Clear selection">
+                    <span class="icon">☐</span>
+                    <span class="text">Clear</span>
+                </button>
+            </div>
+            <div class="bulk-actions">
+                <button class="bulk-action-btn copy-selected-btn" id="copySelectedBtn" title="Copy selected messages">
+                    <span class="icon">📋</span>
+                    <span class="text">Copy Selected</span>
+                </button>
+                <button class="bulk-action-btn export-selected-btn" id="exportSelectedBtn" title="Export selected messages">
+                    <span class="icon">📤</span>
+                    <span class="text">Export</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages Area -->
+        <main class="chat-messages" id="chatMessages">
+            <div class="welcome-message">
+                <div class="message system-message" data-message-id="welcome">
+                    <div class="message-header">
+                        <div class="message-meta">
+                            <div class="terminal-prompt">
+                                <span class="prompt-symbol">claude@toolkit:~$</span>
+                                <span class="command">chat --session=new</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-body">
+                            <div class="system-text">
+                                Welcome to Claude Code Toolkit Chat Interface<br>
+                                Type your message below to start the conversation.<br>
+                                <span class="system-hint">Real-time enabled via WebSocket + SSE fallback</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message-footer">
+                        <div class="message-timestamp" data-timestamp="{{ timestamp }}">
+                            {{ timestamp }}
+                        </div>
+                        <div class="message-status">
+                            <span class="status-indicator system"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message Template for JavaScript use (hidden) -->
+            <template id="messageTemplate">
+                <div class="message" data-message-id="" data-selectable="true">
+                    <div class="message-selection-indicator">
+                        <input type="checkbox" class="message-checkbox" aria-label="Select message">
+                    </div>
+                    <div class="message-header">
+                        <div class="message-meta">
+                            <div class="message-author"></div>
+                            <div class="message-thread-indicator">
+                                <span class="thread-line"></span>
+                            </div>
+                        </div>
+                        <div class="message-actions">
+                            <button class="action-btn copy-btn" title="Copy message content" aria-label="Copy message content to clipboard">
+                                <span class="icon copy-icon">📋</span>
+                                <span class="action-text">Copy</span>
+                            </button>
+                            <button class="action-btn retry-btn" title="Retry failed message" aria-label="Retry sending this message" style="display: none;">
+                                <span class="icon retry-icon">🔄</span>
+                                <span class="action-text">Retry</span>
+                            </button>
+                            <button class="action-btn select-btn" title="Select message" aria-label="Select this message">
+                                <span class="icon select-icon">☐</span>
+                                <span class="action-text">Select</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-body">
+                            <div class="message-text"></div>
+                            <div class="message-streaming-indicator">
+                                <span class="typing-dots">
+                                    <span></span><span></span><span></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message-footer">
+                        <div class="message-timestamp relative" data-timestamp=""></div>
+                        <div class="message-status">
+                            <span class="status-indicator" title=""></span>
+                            <div class="error-details" style="display: none;">
+                                <span class="error-message"></span>
+                                <span class="error-timestamp"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Code Block Template for syntax highlighting -->
+            <template id="codeBlockTemplate">
+                <div class="code-block-container">
+                    <div class="code-block-header">
+                        <span class="code-language"></span>
+                        <button class="copy-code-btn" title="Copy code" aria-label="Copy code to clipboard">
+                            <span class="copy-icon">📋</span>
+                            <span class="copy-text">Copy</span>
+                        </button>
+                    </div>
+                    <div class="code-block-content">
+                        <pre><code class="hljs"></code></pre>
+                    </div>
+                </div>
+            </template>
+        </main>
+
+        <!-- Input Area -->
+        <div class="chat-input-container">
+            <div class="input-wrapper">
+                <div class="prompt-indicator">
+                    <span class="user-prompt">user@claude:~$</span>
+                </div>
+                <form class="message-form" id="messageForm">
+                    <div class="input-container">
+                        <textarea
+                            id="messageInput"
+                            class="message-input"
+                            placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+                            autocomplete="off"
+                            maxlength="5000"
+                            rows="1"
+                            data-min-rows="1"
+                            data-max-rows="8"
+                        ></textarea>
+                        <div class="input-indicators">
+                            <div class="character-count">
+                                <span id="charCount">0</span>/5000
+                            </div>
+                            <div class="line-count" id="lineCount">
+                                Line 1
+                            </div>
+                        </div>
+                        <div class="input-hints" id="inputHints">
+                            <div class="hint active" data-hint="basic">
+                                <span class="hint-key">Enter</span> send •
+                                <span class="hint-key">Shift+Enter</span> new line •
+                                <span class="hint-key">↑↓</span> history
+                            </div>
+                            <div class="hint" data-hint="multiline">
+                                <span class="hint-key">Enter</span> send •
+                                <span class="hint-key">Esc</span> single line mode
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="send-button" id="sendButton">
+                        <span class="send-icon">⮞</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-left">
+                <span class="status-item">
+                    <span class="label">Mode:</span>
+                    <span class="value">Interactive</span>
+                </span>
+                <span class="status-item">
+                    <span class="label">Transport:</span>
+                    <span class="value" id="transportType">WebSocket</span>
+                </span>
+            </div>
+            <div class="status-right">
+                <span class="status-item">
+                    <span class="label">Messages:</span>
+                    <span class="value" id="messageCount">0</span>
+                </span>
+                <span class="status-item">
+                    <span class="label">Latency:</span>
+                    <span class="value" id="latency">-- ms</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner-text">Initializing session...</div>
+            <div class="loading-dots">
+                <span>.</span><span>.</span><span>.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="error-modal" id="errorModal">
+        <div class="error-content">
+            <div class="error-header">
+                <span class="error-icon">⚠</span>
+                <h3>Connection Error</h3>
+            </div>
+            <div class="error-message" id="errorMessage">
+                Connection lost. Attempting to reconnect...
+            </div>
+            <div class="error-actions">
+                <button class="retry-button" id="retryButton">Retry Connection</button>
+                <button class="close-button" id="closeErrorButton">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Toast Template -->
+    <template id="toastTemplate">
+        <div class="toast" data-type="">
+            <div class="toast-icon">
+                <span class="icon"></span>
+            </div>
+            <div class="toast-content">
+                <div class="toast-message"></div>
+                <div class="toast-details"></div>
+            </div>
+            <button class="toast-close" aria-label="Close notification">
+                <span class="close-icon">×</span>
+            </button>
+        </div>
+    </template>
+
+    <script src="/static/js/chat.js"></script>
+</body>
+</html>
